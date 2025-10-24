@@ -57,10 +57,10 @@ export default function App() {
 
   if (!quizStarted) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen w-full  bg-gray-100">
-        <div className="text-black bg-white shadow-md rounded-lg p-6 w-full max-w-lg text-center">
-          <h1 className="text-3xl font-bold mb-4">React Quiz App</h1>
-          <p className="mb-6 text-gray-700">
+      <div className="flex flex-col items-center min-h-screen w-full  bg-green-200">
+        <div className="text-black bg-white shadow-md rounded-lg p-6 py-10 max-w-lg text-center mt-6">
+          <h1 className="text-3xl font-bold mb-4">Quiz App</h1>
+          <p className="text-base mb-6 text-gray-700">
             Test your knowledge with this fun quiz!
           </p>
           <button
@@ -76,9 +76,9 @@ export default function App() {
 
   if (showResults) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen w-full bg-green-100">
-        <div className="text-black bg-white shadow-md rounded-lg p-6 w-full max-w-lg text-center">
-          <h2 className="text-2xl font-bold mb-4">Quiz Finished!</h2>
+      <div className="flex flex-col items-center min-h-screen w-full bg-green-200">
+        <div className="text-black bg-white mt-6 shadow-md rounded-lg py-10 px-16 max-w-lg text-center">
+          <h2 className="text-3xl font-bold mb-4">Quiz Finished!</h2>
           <p className="mb-4 text-lg">
             Your Score: {score} / {questions.length}
           </p>
@@ -94,11 +94,12 @@ export default function App() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen w-full bg-gray-100 p-4">
-      <div className="text-black bg-white shadow-md rounded-lg p-6 w-full max-w-lg">
-        <h2 className="text-xl font-bold mb-2">Question {currentQuestion + 1}</h2>
-        <p className="mb-4">{questions[currentQuestion].question}</p>
-        <div className="mb-4 font-semibold text-red-500">Time left: {timer}s</div>
+    <div className="flex flex-col items-center min-h-screen w-full bg-green-200 p-4 py-0">
+      <div className="text-black bg-white mt-6 shadow-md rounded-lg p-8 pt-6 pb-8 w-full max-w-lg">
+        <div className="text-center"><h1 className="text-3xl font-bold mb-10">Quiz</h1></div>
+        <h2 className="text-2xl font-semibold mb-2">Question {currentQuestion + 1}</h2>
+        <p className="mb-4 text-lg">{questions[currentQuestion].question}</p>
+        <div className="text-base mb-4 font-semibold text-red-500">Time left: {timer}s</div>
 
         {questions[currentQuestion].options.map((option, index) => {
           const isCorrect = index === questions[currentQuestion].correct;
@@ -114,7 +115,7 @@ export default function App() {
           return (
             <button
               key={index}
-              className={`block w-full text-left px-4 py-2 my-2 rounded ${btnClass} hover:bg-gray-300`}
+              className={`block w-full text-left px-4 py-2 my-4 rounded ${btnClass} hover:bg-gray-300`}
               onClick={() => selectedAnswer === null && handleAnswer(index)}
             >
               {option}
@@ -122,13 +123,22 @@ export default function App() {
           );
         })}
 
-        
+        <div className="flex justify-between">
           <button
             onClick={nextQuestion}
             className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
             Next Question
           </button>
+
+          <button
+            onClick={restartQuiz}
+            className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+          >
+            Restart Quiz
+          </button>
+
+          </div>
         
 
         {/* {selectedAnswer !== null && (
