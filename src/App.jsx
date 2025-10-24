@@ -1,19 +1,78 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { questions } from "./data/questions";
 
 export default function App() {
-  const [quizStarted, setQuizStarted] = useState(false);
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState(null);
-  const [score, setScore] = useState(0);
-  const [showResults, setShowResults] = useState(false);
-  const [timer, setTimer] = useState(60);
+  const STORAGE_KEY = "quizAppState";
 
+  // Lazy initialize from localStorage
+  const [quizStarted, setQuizStarted] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      return saved?.quizStarted ?? false;
+    } catch {
+      return false;
+    }
+  });
+  const [currentQuestion, setCurrentQuestion] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      return saved?.currentQuestion ?? 0;
+    } catch {
+      return 0;
+    }
+  });
+  const [selectedAnswer, setSelectedAnswer] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      return saved?.selectedAnswer ?? null;
+    } catch {
+      return null;
+    }
+  });
+  const [score, setScore] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      return saved?.score ?? 0;
+    } catch {
+      return 0;
+    }
+  });
+  const [showResults, setShowResults] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      return saved?.showResults ?? false;
+    } catch {
+      return false;
+    }
+  });
+  const [timer, setTimer] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      return saved?.timer ?? 60;
+    } catch {
+      return 60;
+    }
+  });
+
+  // Save to localStorage whenever relevant state changes
+  useEffect(() => {
+    const obj = {
+      quizStarted,
+      currentQuestion,
+      selectedAnswer,
+      score,
+      showResults,
+      timer
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
+  }, [quizStarted, currentQuestion, selectedAnswer, score, showResults, timer]);
+
+  // Timer logic
   useEffect(() => {
     if (quizStarted && !showResults) {
       const countdown = setInterval(() => {
-        setTimer((prev) => {
-          if (prev === 1) {
+        setTimer(prev => {
+          if (prev <= 1) {
             handleTimeout();
             return 60;
           }
@@ -22,17 +81,19 @@ export default function App() {
       }, 1000);
       return () => clearInterval(countdown);
     }
-  }, [quizStarted, currentQuestion]);
+  }, [quizStarted, currentQuestion, showResults]);
 
   const handleTimeout = () => {
-    setScore((prev) => prev); // change is prev - 1  --> prev
+    // Next question without score change
     nextQuestion();
   };
 
   const handleAnswer = (index) => {
-    setSelectedAnswer(index);
-    if (index === questions[currentQuestion].correct) {
-      setScore(score + 1);
+    if (selectedAnswer === null) {
+      setSelectedAnswer(index);
+      if (index === questions[currentQuestion].correct) {
+        setScore(prev => prev + 1);
+      }
     }
   };
 
@@ -53,7 +114,9 @@ export default function App() {
     setScore(0);
     setShowResults(false);
     setTimer(60);
+    localStorage.removeItem(STORAGE_KEY);
   };
+
 
   if (!quizStarted) {
     return (
@@ -137,18 +200,7 @@ export default function App() {
           >
             Restart Quiz
           </button>
-
-          </div>
-        
-
-        {/* {selectedAnswer !== null && (
-          <button
-            onClick={nextQuestion}
-            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            Next Question
-          </button>
-        )} */}
+        </div>
       </div>
     </div>
   );
