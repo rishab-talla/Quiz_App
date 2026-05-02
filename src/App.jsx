@@ -1,207 +1,374 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { questions } from "./data/questions";
 
-export default function App() {
-  const STORAGE_KEY = "quizAppState";
+const STORAGE_KEY = "quizAppState";
+const LOGIN_KEY = "quizAppUser";
 
-  // Lazy initialize from localStorage
-  const [quizStarted, setQuizStarted] = useState(() => {
+// Background wrapper
+function BackgroundVideoWrapper({ children }) {
+  return (
+    <div className="relative min-h-screen w-full overflow-hidden">
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="absolute top-0 left-0 w-full h-full object-cover z-[-1]"
+      >
+        <source src="./bg_video.mp4" type="video/mp4" />
+      </video>
+
+      <div className="absolute inset-0 bg-black/40 z-0"></div>
+      <div className="relative z-10">{children}</div>
+    </div>
+  );
+}
+
+export default function App() {
+  // USER AUTH
+  const [user, setUser] = useState(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      return saved?.quizStarted ?? false;
-    } catch {
-      return false;
-    }
-  });
-  const [currentQuestion, setCurrentQuestion] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      return saved?.currentQuestion ?? 0;
-    } catch {
-      return 0;
-    }
-  });
-  const [selectedAnswer, setSelectedAnswer] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      return saved?.selectedAnswer ?? null;
+      return JSON.parse(localStorage.getItem(LOGIN_KEY));
     } catch {
       return null;
     }
   });
-  const [score, setScore] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      return saved?.score ?? 0;
-    } catch {
-      return 0;
-    }
-  });
-  const [showResults, setShowResults] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      return saved?.showResults ?? false;
-    } catch {
-      return false;
-    }
-  });
-  const [timer, setTimer] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      return saved?.timer ?? 60;
-    } catch {
-      return 60;
-    }
-  });
 
-  // Save to localStorage whenever relevant state changes
+  const [isRegistering, setIsRegistering] = useState(false);
+
+  // Register fields
+  const [regEmail, setRegEmail] = useState("");
+  const [regPassword, setRegPassword] = useState("");
+  const [regConfirmPassword, setRegConfirmPassword] = useState("");
+  const [regError, setRegError] = useState("");
+
+  // Login fields
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+
+  // GET SAVED STATE
+  const getSavedState = () => {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+    } catch {
+      return {};
+    }
+  };
+
+  const saved = getSavedState();
+
+  // QUIZ STATES
+  const [quizStarted, setQuizStarted] = useState(saved.quizStarted ?? false);
+  const [currentQuestion, setCurrentQuestion] = useState(saved.currentQuestion ?? 0);
+
+  const [answers, setAnswers] = useState(() =>
+    Array.isArray(saved.answers)
+      ? saved.answers
+      : Array(questions.length).fill(null)
+  );
+
+  const [score, setScore] = useState(saved.score ?? 0);
+  const [showResults, setShowResults] = useState(saved.showResults ?? false);
+  const [timer, setTimer] = useState(saved.timer ?? 60);
+
+  // SAVE STATE
   useEffect(() => {
-    const obj = {
-      quizStarted,
-      currentQuestion,
-      selectedAnswer,
-      score,
-      showResults,
-      timer
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
-  }, [quizStarted, currentQuestion, selectedAnswer, score, showResults, timer]);
+    const safeAnswers = Array.isArray(answers)
+      ? answers
+      : Array(questions.length).fill(null);
 
-  // Timer logic
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        quizStarted,
+        currentQuestion,
+        answers: safeAnswers,
+        score,
+        showResults,
+        timer,
+      })
+    );
+  }, [quizStarted, currentQuestion, answers, score, showResults, timer]);
+
+  // TIMER
   useEffect(() => {
     if (quizStarted && !showResults) {
-      const countdown = setInterval(() => {
-        setTimer(prev => {
+      const t = setInterval(() => {
+        setTimer((prev) => {
           if (prev <= 1) {
-            handleTimeout();
+            nextQuestion();
             return 60;
           }
           return prev - 1;
         });
       }, 1000);
-      return () => clearInterval(countdown);
+
+      return () => clearInterval(t);
     }
   }, [quizStarted, currentQuestion, showResults]);
 
-  const handleTimeout = () => {
-    // Next question without score change
-    nextQuestion();
+  // SELECT ANSWER
+  const handleAnswer = (optionIndex) => {
+    const updated = Array.isArray(answers)
+      ? [...answers]
+      : Array(questions.length).fill(null);
+
+    updated[currentQuestion] = optionIndex;
+    setAnswers(updated);
   };
 
-  const handleAnswer = (index) => {
-    if (selectedAnswer === null) {
-      setSelectedAnswer(index);
-      if (index === questions[currentQuestion].correct) {
-        setScore(prev => prev + 1);
-      }
-    }
-  };
-
+  // NEXT / SUBMIT
   const nextQuestion = () => {
     if (currentQuestion + 1 < questions.length) {
-      setCurrentQuestion(currentQuestion + 1);
-      setSelectedAnswer(null);
+      setCurrentQuestion((prev) => prev + 1);
       setTimer(60);
     } else {
+      let finalScore = 0;
+
+      if (Array.isArray(answers)) {
+        answers.forEach((ans, i) => {
+          if (ans === questions[i].correct) finalScore++;
+        });
+      }
+
+      setScore(finalScore);
       setShowResults(true);
     }
   };
 
+  // RESET QUIZ
   const restartQuiz = () => {
     setQuizStarted(false);
     setCurrentQuestion(0);
-    setSelectedAnswer(null);
+    setAnswers(Array(questions.length).fill(null));
     setScore(0);
     setShowResults(false);
     setTimer(60);
     localStorage.removeItem(STORAGE_KEY);
   };
 
+  // LOGOUT (clears everything)
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem(LOGIN_KEY);
+    localStorage.removeItem(STORAGE_KEY);
+  };
 
+  // REGISTER
+  const handleRegister = (e) => {
+    e.preventDefault();
+
+    const email = regEmail.trim();
+    const password = regPassword;
+
+    if (!email || !password) {
+      setRegError("Email and password required");
+      return;
+    }
+
+    if (password !== regConfirmPassword) {
+      setRegError("Passwords do not match");
+      return;
+    }
+
+    if (localStorage.getItem(`user_${email}`)) {
+      setRegError("User already exists");
+      return;
+    }
+
+    localStorage.setItem(
+      `user_${email}`,
+      JSON.stringify({ email, password })
+    );
+
+    const loggedUser = { email };
+    localStorage.setItem(LOGIN_KEY, JSON.stringify(loggedUser));
+    setUser(loggedUser);
+
+    setRegEmail("");
+    setRegPassword("");
+    setRegConfirmPassword("");
+    setRegError("");
+  };
+
+  // LOGIN
+  const handleLogin = (e) => {
+    e.preventDefault();
+
+    const email = loginEmail.trim();
+    const password = loginPassword;
+
+    if (!email || !password) {
+      setLoginError("Email and password required");
+      return;
+    }
+
+    const data = localStorage.getItem(`user_${email}`);
+    if (!data) {
+      setLoginError("No account found");
+      return;
+    }
+
+    const parsed = JSON.parse(data);
+    if (parsed.password !== password) {
+      setLoginError("Invalid credentials");
+      return;
+    }
+
+    const loggedUser = { email };
+    localStorage.setItem(LOGIN_KEY, JSON.stringify(loggedUser));
+    setUser(loggedUser);
+    setLoginError("");
+  };
+
+  // LOGIN SCREEN
+  if (!user) {
+    return (
+      <BackgroundVideoWrapper>
+        <div className="flex flex-col items-center min-h-screen w-full p-6">
+          <div className="bg-white shadow-md rounded-lg p-6 max-w-lg w-full text-center mt-6">
+            {isRegistering ? (
+              <>
+                <h1 className="text-3xl font-bold mb-4">Register</h1>
+                <form onSubmit={handleRegister} className="space-y-4">
+                  <input type="email" placeholder="Email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} className="w-full px-4 py-2 border rounded" />
+                  <input type="password" placeholder="Password" value={regPassword} onChange={(e) => setRegPassword(e.target.value)} className="w-full px-4 py-2 border rounded" />
+                  <input type="password" placeholder="Confirm Password" value={regConfirmPassword} onChange={(e) => setRegConfirmPassword(e.target.value)} className="w-full px-4 py-2 border rounded" />
+                  {regError && <div className="text-red-500">{regError}</div>}
+                  <button className="px-6 py-2 bg-blue-500 text-white rounded">Register</button>
+                </form>
+                <p className="mt-4">
+                  Already have an account?{" "}
+                  <button onClick={() => setIsRegistering(false)} className="text-blue-400 underline">Login</button>
+                </p>
+              </>
+            ) : (
+              <>
+                <h1 className="text-3xl font-bold mb-4">Login</h1>
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <input type="email" placeholder="Email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} className="w-full px-4 py-2 border rounded" />
+                  <input type="password" placeholder="Password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} className="w-full px-4 py-2 border rounded" />
+                  {loginError && <div className="text-red-500">{loginError}</div>}
+                  <button className="px-6 py-2 bg-blue-500 text-white rounded">Login</button>
+                </form>
+                <p className="mt-4">
+                  Don’t have an account?{" "}
+                  <button onClick={() => setIsRegistering(true)} className="text-blue-400 underline">Register</button>
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      </BackgroundVideoWrapper>
+    );
+  }
+
+  // HOME
   if (!quizStarted) {
     return (
-      <div className="flex flex-col items-center min-h-screen w-full  bg-green-200">
-        <div className="text-black bg-white shadow-md rounded-lg p-6 py-10 max-w-lg text-center mt-6">
-          <h1 className="text-3xl font-bold mb-4">Quiz App</h1>
-          <p className="text-base mb-6 text-gray-700">
-            Test your knowledge with this fun quiz!
-          </p>
-          <button
-            onClick={() => setQuizStarted(true)}
-            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-          >
-            Start Quiz
-          </button>
+      <BackgroundVideoWrapper>
+        <div className="flex flex-col items-center min-h-screen w-full p-6">
+          <div className="bg-white rounded-lg p-10 shadow-md text-center w-full max-w-lg">
+            
+            {/* Logout */}
+            <div className="flex justify-end mb-4">
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-red-500 text-white rounded"
+              >
+                Logout
+              </button>
+            </div>
+
+            <h1 className="text-3xl font-bold mb-4">Quizify</h1>
+
+            <button
+              onClick={() => setQuizStarted(true)}
+              className="px-6 py-2 bg-blue-500 text-white rounded"
+            >
+              Start Quiz
+            </button>
+          </div>
         </div>
-      </div>
+      </BackgroundVideoWrapper>
     );
   }
 
+  // RESULTS
   if (showResults) {
     return (
-      <div className="flex flex-col items-center min-h-screen w-full bg-green-200">
-        <div className="text-black bg-white mt-6 shadow-md rounded-lg py-10 px-16 max-w-lg text-center">
-          <h2 className="text-3xl font-bold mb-4">Quiz Finished!</h2>
-          <p className="mb-4 text-lg">
-            Your Score: {score} / {questions.length}
-          </p>
-          <button
-            onClick={restartQuiz}
-            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-          >
-            Restart Quiz
-          </button>
+      <BackgroundVideoWrapper>
+        <div className="flex flex-col items-center min-h-screen w-full p-6">
+          <div className="bg-white rounded-lg shadow-md p-10 text-center w-full max-w-lg">
+
+            {/* Logout */}
+            <div className="flex justify-end mb-4">
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-red-500 text-white rounded"
+              >
+                Logout
+              </button>
+            </div>
+
+            <h2 className="text-3xl font-bold mb-4">Quiz Finished!</h2>
+            <p>Your Score: {score}/{questions.length}</p>
+
+            <button
+              onClick={restartQuiz}
+              className="mt-6 px-6 py-2 bg-blue-500 text-white rounded"
+            >
+              Restart
+            </button>
+          </div>
         </div>
-      </div>
+      </BackgroundVideoWrapper>
     );
   }
 
+  // QUIZ
   return (
-    <div className="flex flex-col items-center min-h-screen w-full bg-green-200 p-4 py-0">
-      <div className="text-black bg-white mt-6 shadow-md rounded-lg p-8 pt-6 pb-8 w-full max-w-lg">
-        <div className="text-center"><h1 className="text-3xl font-bold mb-10">Quiz</h1></div>
-        <h2 className="text-2xl font-semibold mb-2">Question {currentQuestion + 1}</h2>
-        <p className="mb-4 text-lg">{questions[currentQuestion].question}</p>
-        <div className="text-base mb-4 font-semibold text-red-500">Time left: {timer}s</div>
+    <BackgroundVideoWrapper>
+      <div className="flex flex-col items-center min-h-screen w-full p-4">
+        <div className="bg-white mt-6 shadow-md rounded-lg p-8 w-full max-w-lg">
 
-        {questions[currentQuestion].options.map((option, index) => {
-          const isCorrect = index === questions[currentQuestion].correct;
-          const isSelected = index === selectedAnswer;
-
-          let btnClass = "bg-gray-200";
-          if (selectedAnswer !== null) {
-            if (isSelected && isCorrect) btnClass = "bg-green-400";
-            else if (isSelected && !isCorrect) btnClass = "bg-red-400";
-            else if (isCorrect) btnClass = "bg-green-200";
-          }
-
-          return (
+          {/* Logout */}
+          <div className="flex justify-end mb-4">
             <button
-              key={index}
-              className={`block w-full text-left px-4 py-2 my-4 rounded ${btnClass} hover:bg-gray-300`}
-              onClick={() => selectedAnswer === null && handleAnswer(index)}
+              onClick={handleLogout}
+              className="px-4 py-2 bg-red-500 text-white rounded"
             >
-              {option}
+              Logout
             </button>
-          );
-        })}
+          </div>
 
-        <div className="flex justify-between">
+          <h2 className="text-xl mb-4">
+            Q{currentQuestion + 1}: {questions[currentQuestion].question}
+          </h2>
+
+          <p className="text-red-500 mb-4">Time: {timer}s</p>
+
+          {questions[currentQuestion].options.map((opt, i) => (
+            <label key={i} className="block p-2 border rounded my-2">
+              <input
+                type="radio"
+                checked={answers[currentQuestion] === i}
+                onChange={() => handleAnswer(i)}
+              />{" "}
+              {opt}
+            </label>
+          ))}
+
           <button
             onClick={nextQuestion}
-            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            className="mt-4 px-6 py-2 bg-blue-500 text-white rounded"
           >
-            Next Question
-          </button>
-
-          <button
-            onClick={restartQuiz}
-            className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-          >
-            Restart Quiz
+            {currentQuestion === questions.length - 1 ? "Submit" : "Next"}
           </button>
         </div>
       </div>
-    </div>
+    </BackgroundVideoWrapper>
   );
 }
+

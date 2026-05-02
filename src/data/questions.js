@@ -17,7 +17,7 @@ export const questions = [
   {
     question: "What is the Capital of India?",
     options: ["Mumbai", "Delhi", "Surat", "Bangalore"],
-    correct: 1
+    correct: 1 
   },
   {
     question: "Who is named as the 'GOD' of Cricket?",
@@ -37,6 +37,16 @@ export const questions = [
   {
     question: "What is value of 3 divided by half?",
     options: ["1.5", "6", "4", "3"],
+    correct: 1
+  },
+  {
+    question: "Who is the winner of 2024 Men's ICC T20I?",
+    options: ["India", "Australia", "South Africa", "England"],
+    correct: 0
+  },
+  {
+    question: "Who is the called as King of Cricket?",
+    options: ["MS Dhoni", "Virat Kohli", "Rohit Sharma", "Suryakumar Yadav"],
     correct: 1
   },
   
